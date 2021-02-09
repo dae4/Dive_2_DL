@@ -1,8 +1,5 @@
 #%%
-import tensorflow as tf
 import numpy as np
-
-## basic
 
 x= np.arange(12)
 print(x)
@@ -54,3 +51,24 @@ X[0:2,:]
 # %%
 X[0:2,:]=12
 X
+
+#%%
+## Saving Memory
+## id() gives us the exact address of referenced object
+before = id(Y)
+Y=Y+X
+print(id(Y)==before) # Y change address
+
+Z = np.zeros_like(Y)
+print('id(Z)',id(Z))
+Z[:]=X+Y 
+print('id(Z)',id(Z)) ## not change address of Z 
+
+before = id(X)
+X += Y              ## not change address of X 
+print(id(X) == before)
+#%%
+## Conversioo otehr python object
+
+a = np.array([3.5])
+print(a,a.item(),float(a),int(a))
