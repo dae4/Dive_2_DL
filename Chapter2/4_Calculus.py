@@ -64,4 +64,5 @@ def plot(X,Y=None,xlabel=None,ylabel=None,legend=None,xlim=None,ylim=None,
 # %%
 x=np.arange(0,3,0.1)
 plot(x,[f(x),2*x-3],'x','f(x)',legend=['f(x)','Tangent Lone (x=1)'])
+
 # %%
