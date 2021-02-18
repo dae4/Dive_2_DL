@@ -29,7 +29,6 @@ X,y = mnist_train[0][:18],mnist_train[1][:18]
 print(X.shape)
 show_images(X,2,9,titles=get_fashion_mnist_labels(y))
 # %%
-import threading
 batch_size = 256
 train_iter = tf.data.Dataset.from_tensor_slices(
     mnist_train).batch(batch_size).shuffle(len(mnist_train[0]))
@@ -52,4 +51,19 @@ train_iter, test_iter = load_data_fashion_mnist(32, resize=64)
 for X, y in train_iter:
     print(X.shape, X.dtype, y.shape, y.dtype)
     break
+# %%
+resize=64
+batch_size=32
+mnist_train,mnist_test = tf.keras.datasets.fashion_mnist.load_data()
+process = lambda X, y: (tf.expand_dims(X, axis=3) / 255,
+                        tf.cast(y, dtype='int32'))
+## tf.cast = 부동소수점은 버림, boolean은 True = 1 ,False = 0
+resize_fn = lambda X, y: (
+        tf.image.resize_with_pad(X, resize, resize) if resize else X, y)
+X, y= (
+    tf.image.resize_with_pad(X, resize, resize) if resize else X, y)
+tf.data.Dataset.from_tensor_slices(process(*mnist_train)).batch(
+    batch_size).shuffle(len(mnist_train[0])).map(resize_fn),
+tf.data.Dataset.from_tensor_slices(process(*mnist_test)).batch(
+    batch_size).map(resize_fn)
 # %%

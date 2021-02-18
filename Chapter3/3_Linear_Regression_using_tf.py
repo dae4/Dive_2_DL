@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-def synthetic_data(w, b, num_examples):  #@save
+def synthetic_data(w, b, num_examples): 
     """Generate y = Xw + b + noise."""
     X = tf.zeros((num_examples, w.shape[0]))
     X += tf.random.normal(shape=X.shape)
