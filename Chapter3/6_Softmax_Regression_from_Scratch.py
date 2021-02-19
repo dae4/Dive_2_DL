@@ -40,6 +40,7 @@ def net(X):
     return softmax(tf.matmul(tf.reshape(X, (-1, W.shape[0])), W) + b)
     # tf.reshape(X, (-1, w.shape[0])) X를 w의 형태로 reshape
     # tf.matmul(tf.reshape(X, (-1, w.shape[0])),w) w*b
+
 def cross_entropy(y_hat, y):
     return -tf.math.log(tf.boolean_mask(
         y_hat, tf.one_hot(y, depth=y_hat.shape[-1])))
@@ -115,7 +116,7 @@ def set_axes(axes, xlabel, ylabel, xlim, ylim, xscale, yscale, legend):
         axes.legend(legend)
     axes.grid()
 
-class Animator:  #@save
+class Animator:
     """For plotting data in animation."""
     def __init__(self, xlabel=None, ylabel=None, legend=None, xlim=None,
                  ylim=None, xscale='linear', yscale='linear',
@@ -154,8 +155,7 @@ class Animator:  #@save
         display.display(self.fig)
         display.clear_output(wait=True)
 # %%
-def train(net, train_iter, test_iter, loss, num_epochs, updater):  #@save
-    """Train a model (defined in Chapter 3)."""
+def train(net, train_iter, test_iter, loss, num_epochs, updater):
     animator = Animator(xlabel='epoch', xlim=[1, num_epochs], ylim=[0.3, 0.9],
                         legend=['train loss', 'train acc', 'test acc'])
     for epoch in range(num_epochs):
