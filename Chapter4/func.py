@@ -1,5 +1,3 @@
-#%%
-
 import tensorflow as tf
 from IPython import display
 import matplotlib.pyplot as plt
@@ -137,21 +135,43 @@ def train(net, train_iter, test_iter, loss, num_epochs, updater):
     assert train_loss < 0.5, train_loss
     assert train_acc <= 1 and train_acc > 0.7, train_acc
     assert test_acc <= 1 and test_acc > 0.7, test_acc
-#%%
-batch_size= 256
 
-num_epoch =10
+def sgd(params, grads, lr, batch_size):
+    """Minibatch stochastic gradient descent."""
+    for param, grad in zip(params, grads):
+        param.assign_sub(lr * grad / batch_size)
 
-train_iter, test_iter = load_data_fashion_mnist(batch_size)
+class Updater():  #@save
+    """For updating parameters using minibatch stochastic gradient descent."""
+    def __init__(self, params, lr):
+        self.params = params
+        self.lr = lr
 
-net = tf.keras.Sequential()
-net.add(tf.keras.layers.Flatten(input_shape=(28, 28)))
-weight_initializer = tf.keras.initializers.RandomNormal(mean=0.0, stddev=0.01)
-net.add(tf.keras.layers.Dense(10, kernel_initializer=weight_initializer))
+    def __call__(self, batch_size, grads):
+        sgd(self.params, grads, self.lr, batch_size)
 
-loss = tf.losses.SparseCategoricalCrossentropy(from_logits=True)
+def get_fashion_mnist_labels(labels):
+    text_labels = ['t-shirt', 'trouser', 'pullover', 'dress', 'coat',
+                   'sandal', 'shirt', 'sneaker', 'bag', 'ankle boot']
+    return [text_labels[int(i)] for i in labels]
 
-trainer = tf.keras.optimizers.SGD(learning_rate=0.1)
+def show_images(imgs,num_rows,num_cols,titles=None,scale=1.5):
+    figsize = (num_cols * scale, num_rows*scale)
+    _,axes = plt.subplots(num_rows,num_cols,figsize=figsize)
+    axes= axes.flatten()
+    for i,(ax,img) in enumerate(zip(axes,imgs)):
+        ax.imshow(img)
+        ax.axes.get_xaxis().set_visible(False)
+        ax.axes.get_xaxis().set_visible(False)
+        if titles:
+            ax.set_title(titles[i])
+    return axes
 
-train(net, train_iter, test_iter, loss, num_epoch, trainer)
-# %%
+def predict(net, test_iter, n=6):  
+    for X, y in test_iter:
+        break
+    trues = get_fashion_mnist_labels(y)
+    preds = get_fashion_mnist_labels(tf.argmax(net(X), axis=1))
+    titles = [true +'\n' + pred for true, pred in zip(trues, preds)]
+    show_images(
+        tf.reshape(X[0:n], (n, 28, 28)), 1, n, titles=titles[0:n])
