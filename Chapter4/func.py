@@ -175,3 +175,11 @@ def predict(net, test_iter, n=6):
     titles = [true +'\n' + pred for true, pred in zip(trues, preds)]
     show_images(
         tf.reshape(X[0:n], (n, 28, 28)), 1, n, titles=titles[0:n])
+
+def load_array(data_arrays, batch_size, is_train=True):
+    """Construct a TensorFlow data iterator."""
+    dataset = tf.data.Dataset.from_tensor_slices(data_arrays)
+    if is_train:
+        dataset = dataset.shuffle(buffer_size=1000)
+    dataset = dataset.batch(batch_size)
+    return dataset
