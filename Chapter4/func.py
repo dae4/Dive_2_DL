@@ -1,6 +1,7 @@
 import tensorflow as tf
 from IPython import display
 import matplotlib.pyplot as plt
+import numpy as np
 
 def load_data_fashion_mnist(batch_size,resize=None):
     mnist_train,mnist_test = tf.keras.datasets.fashion_mnist.load_data()
@@ -183,3 +184,22 @@ def load_array(data_arrays, batch_size, is_train=True):
         dataset = dataset.shuffle(buffer_size=1000)
     dataset = dataset.batch(batch_size)
     return dataset
+
+
+def synthetic_data(w, b, num_examples):
+    """Generate y = Xw + b + noise."""
+    X = tf.zeros((num_examples, w.shape[0]))
+    X += tf.random.normal(shape=X.shape)
+    y = tf.matmul(X, tf.reshape(w, (-1, 1))) + b
+    y += tf.random.normal(shape=y.shape, stddev=0.01)
+    y = tf.reshape(y, (-1, 1))
+    return X, y
+
+
+def evaluate_loss(net, data_iter, loss):
+    """Evaluate the loss of a model on the given dataset."""
+    metric = Accumulator(2)  # Sum of losses, no. of examples
+    for X, y in data_iter:
+        l = loss(net(X), y)
+        metric.add(tf.reduce_sum(l), tf.size(l))
+    return metric[0] / metric[1]
