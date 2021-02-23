@@ -7,6 +7,7 @@ from func import *
 
 n_train, n_test, num_inputs, batch_size = 20,100,200,5
 true_w, true_b = tf.ones((num_inputs,1)) * 0.01, 0.05
+## synthetic_data : Generate y = Xw + b + noise
 train_data = synthetic_data(true_w, true_b, n_train)
 train_iter = load_array(train_data, batch_size)
 test_data = synthetic_data(true_w, true_b, n_test)
@@ -50,7 +51,7 @@ train(lambd=0)
 # %%
 train(lambd=3)
 # %%
-
+##concise
 def train_concise(wd):
     net = tf.keras.models.Sequential()
     net.add(tf.keras.layers.Dense(

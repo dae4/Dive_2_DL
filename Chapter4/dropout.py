@@ -51,3 +51,21 @@ loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
 train_iter, test_iter = load_data_fashion_mnist(batch_size)
 trainer = tf.keras.optimizers.SGD(learning_rate=lr)
 train(net, train_iter, test_iter, loss, num_epochs, trainer)
+#%%
+## consise
+
+net = tf.keras.models.Sequential([
+    tf.keras.layers.Flatten(),
+    tf.keras.layers.Dense(256, activation=tf.nn.relu),
+    # Add a dropout layer after the first fully connected layer
+    tf.keras.layers.Dropout(dropout1),
+    tf.keras.layers.Dense(256, activation=tf.nn.relu),
+    # Add a dropout layer after the second fully connected layer
+    tf.keras.layers.Dropout(dropout2),
+    tf.keras.layers.Dense(10),
+])
+
+trainer = tf.keras.optimizers.SGD(learning_rate=lr)
+train(net, train_iter, test_iter, loss, num_epochs, trainer)
+
+#%%
