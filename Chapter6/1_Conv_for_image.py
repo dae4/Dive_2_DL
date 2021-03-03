@@ -56,11 +56,12 @@ Y = tf.reshape(Y, (1, 6, 7, 1))
 
 Y_hat = conv2d(X)
 print(Y_hat.shape)
-
+## Y_hat.shape = (6-1+1 , 8-2+1)
 for i in range(10):
     with tf.GradientTape(watch_accessed_variables=False) as g:
         g.watch(conv2d.weights[0])
         Y_hat = conv2d(X)
+        ## calculate loss 
         l = (abs(Y_hat - Y)) ** 2
         # Update the kernel
         update = tf.multiply(3e-2, g.gradient(l, conv2d.weights[0]))
