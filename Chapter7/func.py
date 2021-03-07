@@ -3,6 +3,18 @@ from IPython import display
 import matplotlib.pyplot as plt
 import numpy as np
 
+gpus = tf.config.experimental.list_physical_devices('GPU')
+if gpus:
+  try:
+    # Currently, memory growth needs to be the same across GPUs
+    for gpu in gpus:
+      tf.config.experimental.set_memory_growth(gpu, True)
+    logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+    print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+  except RuntimeError as e:
+    # Memory growth must be set before GPUs have been initialized
+    print(e)
+
 def corr2d(X, K):
     h, w = K.shape
     Y = tf.Variable(tf.zeros((X.shape[0] - h + 1, X.shape[1] - w + 1)))
@@ -164,7 +176,7 @@ class TrainCallback(tf.keras.callbacks.Callback):
 
     def on_epoch_end(self, epoch, logs):
         self.timer.stop()
-        test_acc = self.net.evaluate(self.test_iter, verbose=0)[0]
+        test_acc = self.net.evaluate(self.test_iter, verbose=0)[1]
         metrics = (logs['loss'], logs['accuracy'], test_acc)
         self.animator.add(epoch + 1, metrics)
         if epoch == self.num_epochs - 1:
