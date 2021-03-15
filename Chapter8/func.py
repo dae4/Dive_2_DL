@@ -4,11 +4,28 @@ import re
 import hashlib
 import requests
 import random
+import numpy as np
+import matplotlib.pyplot as plt
+from IPython import display
+
 
 DATA_HUB = dict()
 DATA_URL = 'http://d2l-data.s3-accelerate.amazonaws.com/'
 
 DATA_HUB['time_machine'] = (DATA_URL + 'timemachine.txt', '090b5e7e70c295757f55df93cb0a180b9691891a')
+
+
+gpus = tf.config.experimental.list_physical_devices('GPU')
+if gpus:
+  try:
+    # Currently, memory growth needs to be the same across GPUs
+    for gpu in gpus:
+      tf.config.experimental.set_memory_growth(gpu, True)
+    logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+    print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+  except RuntimeError as e:
+    # Memory growth must be set before GPUs have been initialized
+    print(e)
 
 def tokenize(lines, token='word'):
     """Split text lines into word or character tokens."""
@@ -116,7 +133,7 @@ def seq_data_iter_random(corpus, batch_size, num_steps):
         initial_indices_per_batch = initial_indices[i:i + batch_size]
         X = [data(j) for j in initial_indices_per_batch]
         Y = [data(j + 1) for j in initial_indices_per_batch]
-        yield tf.tensor(X), tf.tensor(Y)
+        yield tf.constant(X), tf.constant(Y)
 
 
 # Defined in file: ./chapter_recurrent-neural-networks/language-models-and-dataset.md
@@ -125,8 +142,8 @@ def seq_data_iter_sequential(corpus, batch_size, num_steps):
     # Start with a random offset to partition a sequence
     offset = random.randint(0, num_steps)
     num_tokens = ((len(corpus) - offset - 1) // batch_size) * batch_size
-    Xs = tf.tensor(corpus[offset:offset + num_tokens])
-    Ys = tf.tensor(corpus[offset + 1:offset + 1 + num_tokens])
+    Xs = tf.constant(corpus[offset:offset + num_tokens])
+    Ys = tf.constant(corpus[offset + 1:offset + 1 + num_tokens])
     Xs = tf.reshape(Xs, (batch_size, -1))
     Ys = tf.reshape(Ys, (batch_size, -1))
     num_batches = Xs.shape[1] // num_steps
@@ -172,6 +189,19 @@ def try_gpu(i=0):
     if len(tf.config.experimental.list_physical_devices('GPU')) >= i + 1:
         return tf.device(f'/GPU:{i}')
     return tf.device('/CPU:0')
+
+def set_axes(axes, xlabel, ylabel, xlim, ylim, xscale, yscale, legend):
+    """Set the axes for matplotlib."""
+    axes.set_xlabel(xlabel)
+    axes.set_ylabel(ylabel)
+    axes.set_xscale(xscale)
+    axes.set_yscale(yscale)
+    axes.set_xlim(xlim)
+    axes.set_ylim(ylim)
+    if legend:
+        axes.legend(legend)
+    axes.grid()
+
 
 class Animator:
     """For plotting data in animation."""
@@ -240,3 +270,92 @@ class Timer:
     def cumsum(self):
         """Return the accumulated time."""
         return np.array(self.times).cumsum().tolist()
+
+class Accumulator:
+    """For accumulating sums over `n` variables."""
+    def __init__(self, n):
+        self.data = [0.0] * n
+
+    def add(self, *args):
+        self.data = [a + float(b) for a, b in zip(self.data, args)]
+
+    def reset(self):
+        self.data = [0.0] * len(self.data)
+
+    def __getitem__(self, idx):
+        return self.data[idx]
+
+
+def predict_rnn(prefix, num_preds, net, vocab, params):  #@save
+    """Generate new characters following the `prefix`."""
+    state = net.begin_state(batch_size=1)
+    outputs = [vocab[prefix[0]]]
+    get_input = lambda: tf.reshape(tf.constant([outputs[-1]]), (1, 1)).numpy()
+    for y in prefix[1:]:  # Warm-up period
+        _, state = net(get_input(), state, params)
+        outputs.append(vocab[y])
+    for _ in range(num_preds):  # Predict `num_preds` steps
+        y, state = net(get_input(), state, params)
+        outputs.append(int(y.numpy().argmax(axis=1).reshape(1)))
+    return ''.join([vocab.idx_to_token[i] for i in outputs])
+
+def grad_clipping(grads, theta): #@save
+    """Clip the gradient."""
+    theta = tf.constant(theta, dtype=tf.float32)
+    norm = tf.math.sqrt(sum((tf.reduce_sum(grad ** 2)).numpy()
+                        for grad in grads))
+    norm = tf.cast(norm, tf.float32)
+    new_grad = []
+    if tf.greater(norm, theta):
+        for grad in grads:
+            new_grad.append(grad * theta / norm)
+    else:
+        for grad in grads:
+            new_grad.append(grad)
+    return new_grad
+
+def train_epoch_rnn(net, train_iter, loss, updater, params, use_random_iter):
+    """Train a model within one epoch (defined in Chapter 8)."""
+    state, timer = None, Timer()
+    metric = Accumulator(2)  # Sum of training loss, no. of tokens
+    for X, Y in train_iter:
+        if state is None or use_random_iter:
+            # Initialize `state` when either it is the first iteration or
+            # using random sampling
+            state = net.begin_state(batch_size=X.shape[0])
+        with tf.GradientTape(persistent=True) as g:
+            g.watch(params)
+            y_hat, state= net(X, state, params)
+            y = tf.reshape(tf.transpose(Y), (-1))
+            l = loss(y, y_hat)
+        grads = g.gradient(l, params)
+        grads = grad_clipping(grads, 1)
+        updater.apply_gradients(zip(grads, params))
+        
+        # Keras loss by default returns the average loss in a batch
+        # l_sum = l * float(tf.size(y).numpy()) if isinstance(
+        #     loss, tf.keras.losses.Loss) else tf.reduce_sum(l)
+        metric.add(l * tf.size(y).numpy(), tf.size(y).numpy())
+    return math.exp(metric[0] / metric[1]), metric[1] / timer.stop()
+
+def train_rnn(net, train_iter, vocab, num_hiddens, lr, num_epochs, strategy,
+              use_random_iter=False):
+    """Train a model (defined in Chapter 8)."""
+    with strategy.scope():
+        params = get_params(len(vocab), num_hiddens)
+        loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
+        updater = tf.keras.optimizers.SGD(lr)
+    animator = Animator(xlabel='epoch', ylabel='perplexity',
+                            legend=['train'], xlim=[10, num_epochs])
+    predict = lambda prefix: predict_ch8(prefix, 50, net, vocab, params)
+    # Train and predict
+    for epoch in range(num_epochs):
+        ppl, speed = train_epoch_ch8(
+             net, train_iter, loss, updater, params, use_random_iter)
+        if (epoch + 1) % 10 == 0:
+            print(predict('time traveller'))
+            animator.add(epoch + 1, [ppl])
+    device = try_gpu()._device_name
+    print(f'perplexity {ppl:.1f}, {speed:.1f} tokens/sec on {str(device)}')
+    print(predict('time traveller'))
+    print(predict('traveller'))

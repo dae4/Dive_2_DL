@@ -74,7 +74,7 @@ params = get_params(len(vocab), num_hiddens)
 Y, new_state = net(X, state, params)
 Y.shape, len(new_state), new_state[0].shape
 
-
+#%%
 def predict_ch8(prefix, num_preds, net, vocab, params):  #@save
     """Generate new characters following the `prefix`."""
     state = net.begin_state(batch_size=1)
@@ -108,8 +108,8 @@ def grad_clipping(grads, theta): #@save
 
 def train_epoch_ch8(net, train_iter, loss, updater, params, use_random_iter):
     """Train a model within one epoch (defined in Chapter 8)."""
-    state, timer = None, d2l.Timer()
-    metric = d2l.Accumulator(2)  # Sum of training loss, no. of tokens
+    state, timer = None, Timer()
+    metric = Accumulator(2)  # Sum of training loss, no. of tokens
     for X, Y in train_iter:
         if state is None or use_random_iter:
             # Initialize `state` when either it is the first iteration or
@@ -131,7 +131,6 @@ def train_epoch_ch8(net, train_iter, loss, updater, params, use_random_iter):
     return math.exp(metric[0] / metric[1]), metric[1] / timer.stop()
 
 
-#@save
 def train_ch8(net, train_iter, vocab, num_hiddens, lr, num_epochs, strategy,
               use_random_iter=False):
     """Train a model (defined in Chapter 8)."""
@@ -139,7 +138,7 @@ def train_ch8(net, train_iter, vocab, num_hiddens, lr, num_epochs, strategy,
         params = get_params(len(vocab), num_hiddens)
         loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
         updater = tf.keras.optimizers.SGD(lr)
-    animator = d2l.Animator(xlabel='epoch', ylabel='perplexity',
+    animator = Animator(xlabel='epoch', ylabel='perplexity',
                             legend=['train'], xlim=[10, num_epochs])
     predict = lambda prefix: predict_ch8(prefix, 50, net, vocab, params)
     # Train and predict
@@ -149,7 +148,7 @@ def train_ch8(net, train_iter, vocab, num_hiddens, lr, num_epochs, strategy,
         if (epoch + 1) % 10 == 0:
             print(predict('time traveller'))
             animator.add(epoch + 1, [ppl])
-    device = d2l.try_gpu()._device_name
+    device = try_gpu()._device_name
     print(f'perplexity {ppl:.1f}, {speed:.1f} tokens/sec on {str(device)}')
     print(predict('time traveller'))
     print(predict('traveller'))
@@ -157,7 +156,7 @@ def train_ch8(net, train_iter, vocab, num_hiddens, lr, num_epochs, strategy,
 num_epochs, lr = 500, 1
 train_ch8(net, train_iter, vocab, num_hiddens, lr, num_epochs, strategy)
 
-
+#%%
 params = get_params(len(vocab_random_iter), num_hiddens)
 train_ch8(net, train_random_iter, vocab_random_iter, num_hiddens, lr,
           num_epochs, strategy, use_random_iter=True)

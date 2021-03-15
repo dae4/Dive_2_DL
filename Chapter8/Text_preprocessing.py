@@ -41,7 +41,7 @@ print(f'# text lines: {len(lines)}')
 print(lines[0])
 print(lines[10])
 # %%
-def tokenize(lines, token='word'):  #@save
+def tokenize(lines, token='word'):
     """Split text lines into word or character tokens."""
     if token == 'word':
         return [line.split() for line in lines]
