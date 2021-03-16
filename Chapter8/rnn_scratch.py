@@ -160,3 +160,4 @@ train_ch8(net, train_iter, vocab, num_hiddens, lr, num_epochs, strategy)
 params = get_params(len(vocab_random_iter), num_hiddens)
 train_ch8(net, train_random_iter, vocab_random_iter, num_hiddens, lr,
           num_epochs, strategy, use_random_iter=True)
+# %%
