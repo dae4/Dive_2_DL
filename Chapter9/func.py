@@ -339,7 +339,7 @@ def train_epoch_rnn(net, train_iter, loss, updater, params, use_random_iter):
     return math.exp(metric[0] / metric[1]), metric[1] / timer.stop()
 
 def train_rnn(net, train_iter, vocab, num_hiddens, lr, num_epochs, strategy, get_params,use_random_iter=False):
-    """Train a model (defined in Chapter 8)."""
+    
     with strategy.scope():
         params = get_params(len(vocab), num_hiddens)
         loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
