@@ -286,16 +286,16 @@ class Accumulator:
         return self.data[idx]
 
 
-def predict_rnn(prefix, num_preds, net, vocab, params):  #@save
+def predict_rnn(prefix, num_preds, net, vocab):
     """Generate new characters following the `prefix`."""
-    state = net.begin_state(batch_size=1)
+    state = net.begin_state(batch_size=1, dtype=tf.float32)
     outputs = [vocab[prefix[0]]]
-    get_input = lambda: tf.reshape(tf.constant([outputs[-1]]), (1, 1)).numpy()
+    get_input = lambda: tf.reshape(tf.Variable([outputs[-1]]), (1, 1)).numpy()
     for y in prefix[1:]:  # Warm-up period
-        _, state = net(get_input(), state, params)
+        _, state = net(get_input(), state)
         outputs.append(vocab[y])
     for _ in range(num_preds):  # Predict `num_preds` steps
-        y, state = net(get_input(), state, params)
+        y, state = net(get_input(), state)
         outputs.append(int(y.numpy().argmax(axis=1).reshape(1)))
     return ''.join([vocab.idx_to_token[i] for i in outputs])
 
@@ -314,42 +314,35 @@ def grad_clipping(grads, theta): #@save
             new_grad.append(grad)
     return new_grad
 
-def train_epoch_rnn(net, train_iter, loss, updater, params, use_random_iter):
-    """Train a model within one epoch (defined in Chapter 8)."""
+def train_epoch_rnn(net, train_iter, loss, updater, use_random_iter):
     state, timer = None, Timer()
     metric = Accumulator(2)  # Sum of training loss, no. of tokens
     for X, Y in train_iter:
         if state is None or use_random_iter:
-            # Initialize `state` when either it is the first iteration or
-            # using random sampling
             state = net.begin_state(batch_size=X.shape[0])
         with tf.GradientTape(persistent=True) as g:
-            g.watch(params)
-            y_hat, state= net(X, state, params)
+            y_hat, state = net(X, state)
             y = tf.reshape(tf.transpose(Y), (-1))
             l = loss(y, y_hat)
+        params = net.trainable_variables
         grads = g.gradient(l, params)
         grads = grad_clipping(grads, 1)
         updater.apply_gradients(zip(grads, params))
         
-        # Keras loss by default returns the average loss in a batch
-        # l_sum = l * float(tf.size(y).numpy()) if isinstance(
-        #     loss, tf.keras.losses.Loss) else tf.reduce_sum(l)
+
         metric.add(l * tf.size(y).numpy(), tf.size(y).numpy())
     return math.exp(metric[0] / metric[1]), metric[1] / timer.stop()
 
-def train_rnn(net, train_iter, vocab, num_hiddens, lr, num_epochs, strategy, get_params,use_random_iter=False):
-    
+def train_rnn(net, train_iter, vocab, lr, num_epochs, strategy,use_random_iter=False):
     with strategy.scope():
-        params = get_params(len(vocab), num_hiddens)
         loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
         updater = tf.keras.optimizers.SGD(lr)
     animator = Animator(xlabel='epoch', ylabel='perplexity',
                             legend=['train'], xlim=[10, num_epochs])
-    predict = lambda prefix: predict_rnn(prefix, 50, net, vocab, params)
+    predict = lambda prefix: predict_rnn(prefix, 50, net, vocab)
     # Train and predict
     for epoch in range(num_epochs):
-        ppl, speed = train_epoch_rnn(net, train_iter, loss, updater, params, use_random_iter)
+        ppl, speed = train_epoch_rnn(net, train_iter, loss, updater, use_random_iter)
         if (epoch + 1) % 10 == 0:
             print(predict('time traveller'))
             animator.add(epoch + 1, [ppl])
@@ -360,14 +353,15 @@ def train_rnn(net, train_iter, vocab, num_hiddens, lr, num_epochs, strategy, get
 
 
 class RNNModelScratch:
-    def __init__(self, vocab_size, num_hiddens, init_state, forward_fn):
+    def __init__(self, vocab_size, num_hiddens, init_state, forward_fn, get_params):
         self.vocab_size, self.num_hiddens = vocab_size, num_hiddens
         self.init_state, self.forward_fn = init_state, forward_fn
+        self.trainable_variables = get_params(vocab_size, num_hiddens)
 
-    def __call__(self, X, state, params):
+    def __call__(self, X, state):
         X = tf.one_hot(tf.transpose(X), self.vocab_size)
         X = tf.cast(X, tf.float32)
-        return self.forward_fn(X, state, params)
+        return self.forward_fn(X, state, self.trainable_variables)
 
-    def begin_state(self, batch_size):
+    def begin_state(self, batch_size, *args, **kwargs):
         return self.init_state(batch_size, self.num_hiddens)

@@ -27,7 +27,6 @@ def get_params(vocab_size,num_hiddens):
 
     return params
 
-
 def init_gru_state(batch_size, num_hiddens):
     return(tf.zeros(shape=(batch_size,num_hiddens)), )
 
@@ -49,8 +48,6 @@ vocab_size, num_hiddens, = len(vocab), 256
 num_epochs, lr = 500,1
 device_name = try_gpu()._device_name
 strategy = tf.distribute.OneDeviceStrategy(device_name)
-model = RNNModelScratch(vocab_size=len(vocab),num_hiddens=num_hiddens,init_state=init_gru_state,forward_fn=gru)
-params=get_params(len(vocab),num_hiddens)
-#%%
-train_rnn(model,train_iter,vocab,num_hiddens,lr,num_epochs,strategy,get_params, use_random_iter=True)
+model = RNNModelScratch(len(vocab),num_hiddens,init_gru_state,gru,get_params)
+train_rnn(model,train_iter, vocab, lr, num_epochs, strategy, use_random_iter=True)
 # %%
