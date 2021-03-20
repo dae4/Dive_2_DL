@@ -365,3 +365,20 @@ class RNNModelScratch:
 
     def begin_state(self, batch_size, *args, **kwargs):
         return self.init_state(batch_size, self.num_hiddens)
+
+class RNNModel(tf.keras.layers.Layer):
+    def __init__(self, rnn_layer, vocab_size, **kwargs):
+        super(RNNModel, self).__init__(**kwargs)
+        self.rnn = rnn_layer
+        self.vocab_size = vocab_size
+        self.dense = tf.keras.layers.Dense(vocab_size)
+
+    def call(self, inputs, state):
+        X = tf.one_hot(tf.transpose(inputs), self.vocab_size)
+        # Later RNN like `tf.keras.layers.LSTMCell` return more than two values
+        Y, *state = self.rnn(X, state)
+        output = self.dense(tf.reshape(Y, (-1, Y.shape[-1])))
+        return output, state
+
+    def begin_state(self, *args, **kwargs):
+        return self.rnn.cell.get_initial_state(*args, **kwargs)
