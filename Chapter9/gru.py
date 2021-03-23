@@ -1,5 +1,6 @@
 #%%
 import tensorflow as tf
+from tensorflow.python.keras.backend import dtype
 from tensorflow.python.ops.linalg_ops import norm
 from func import *
 
@@ -53,6 +54,9 @@ train_rnn(model,train_iter, vocab, lr, num_epochs, strategy, use_random_iter=Tru
 # %%
 gru_cell = tf.keras.layers.GRUCell(num_hiddens, kernel_initializer='glorot_uniform')
 gru_layer = tf.keras.layers.RNN(gru_cell, time_major=True, return_sequences=True, return_state=True)
-
 device_name = try_gpu()._device_name
+strategy = tf.distribute.OneDeviceStrategy(device_name)
+with strategy.scope():
+    model = RNNModel(gru_layer, vocab_size=len(vocab))
 train_rnn(model, train_iter, vocab, num_hiddens, lr, num_epochs, strategy)
+# %%

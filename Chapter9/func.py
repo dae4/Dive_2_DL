@@ -314,11 +314,14 @@ def grad_clipping(grads, theta): #@save
     return new_grad
 
 def train_epoch_rnn(net, train_iter, loss, updater, use_random_iter):
+    """Train a model within one epoch (defined in Chapter 8)."""
     state, timer = None, Timer()
     metric = Accumulator(2)  # Sum of training loss, no. of tokens
     for X, Y in train_iter:
         if state is None or use_random_iter:
-            state = net.begin_state(batch_size=X.shape[0])
+            # Initialize `state` when either it is the first iteration or
+            # using random sampling
+            state = net.begin_state(batch_size=X.shape[0], dtype=tf.float32)
         with tf.GradientTape(persistent=True) as g:
             y_hat, state = net(X, state)
             y = tf.reshape(tf.transpose(Y), (-1))
@@ -327,10 +330,10 @@ def train_epoch_rnn(net, train_iter, loss, updater, use_random_iter):
         grads = g.gradient(l, params)
         grads = grad_clipping(grads, 1)
         updater.apply_gradients(zip(grads, params))
-        metric.add(l * tf.size(y).numpy(), tf.size(y).numpy())
+        metric.add(l * tf.size(y, out_type=tf.dtypes.float32), tf.size(y))
     return math.exp(metric[0] / metric[1]), metric[1] / timer.stop()
 
-def train_rnn(net, train_iter, vocab, lr, num_epochs, strategy,use_random_iter=False):
+def train_rnn(net, train_iter, vocab, num_hiddens, lr, num_epochs, strategy,use_random_iter=False):
     with strategy.scope():
         loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
         updater = tf.keras.optimizers.SGD(lr)
@@ -338,7 +341,7 @@ def train_rnn(net, train_iter, vocab, lr, num_epochs, strategy,use_random_iter=F
     predict = lambda prefix: predict_rnn(prefix, 50, net, vocab)
     # Train and predict
     for epoch in range(num_epochs):
-        ppl, speed = train_epoch_rnn(net, train_iter, loss, updater, use_random_iter)
+        ppl, speed = train_epoch_rnn(net, train_iter, loss, updater,use_random_iter)
         if (epoch + 1) % 10 == 0:
             print(predict('time traveller'))
             animator.add(epoch + 1, [ppl])
@@ -346,6 +349,7 @@ def train_rnn(net, train_iter, vocab, lr, num_epochs, strategy,use_random_iter=F
     print(f'perplexity {ppl:.1f}, {speed:.1f} tokens/sec on {str(device)}')
     print(predict('time traveller'))
     print(predict('traveller'))
+
 
 
 class RNNModelScratch:

@@ -52,12 +52,12 @@ vocab_size, num_hiddens, = len(vocab), 256
 num_epochs, lr = 500,1
 device_name = try_gpu()._device_name
 strategy = tf.distribute.OneDeviceStrategy(device_name)
-# model = RNNModelScratch( vocab_size, num_hiddens, init_lstm_state, lstm, get_lstm_params)
-# train_rnn(model, train_iter, vocab, lr, num_epochs, strategy, use_random_iter=True)
+model = RNNModelScratch( vocab_size, num_hiddens, init_lstm_state, lstm, get_lstm_params)
+train_rnn(model, train_iter, vocab, lr, num_epochs, strategy, use_random_iter=True)
 # %%
 lstm_cell = tf.keras.layers.LSTMCell(num_hiddens, kernel_initializer='glorot_uniform')
 lstm_layer = tf.keras.layers.RNN(lstm_cell, time_major=True, return_sequences=True, return_state=True)
-model = RNNModel(lstm_layer,vocab_size)
-# %%
-train_rnn(model,train_iter,vocab,lr,num_epochs,strategy)
+with strategy.scope():
+    model = RNNModel(lstm_layer, vocab_size=len(vocab))
+train_rnn(model, train_iter, vocab, num_hiddens, lr, num_epochs, strategy)
 # %%
