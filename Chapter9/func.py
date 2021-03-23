@@ -177,8 +177,7 @@ class SeqDataLoader:  #@save
     def __iter__(self):
         return self.data_iter_fn(self.corpus, self.batch_size, self.num_steps)
 
-def load_data_time_machine(batch_size, num_steps,  #@save
-                           use_random_iter=False, max_tokens=10000):
+def load_data_time_machine(batch_size, num_steps, use_random_iter=False, max_tokens=10000):
     """Return the iterator and the vocabulary of the time machine dataset."""
     data_iter = SeqDataLoader(
         batch_size, num_steps, use_random_iter, max_tokens)
@@ -328,8 +327,6 @@ def train_epoch_rnn(net, train_iter, loss, updater, use_random_iter):
         grads = g.gradient(l, params)
         grads = grad_clipping(grads, 1)
         updater.apply_gradients(zip(grads, params))
-        
-
         metric.add(l * tf.size(y).numpy(), tf.size(y).numpy())
     return math.exp(metric[0] / metric[1]), metric[1] / timer.stop()
 
@@ -337,8 +334,7 @@ def train_rnn(net, train_iter, vocab, lr, num_epochs, strategy,use_random_iter=F
     with strategy.scope():
         loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
         updater = tf.keras.optimizers.SGD(lr)
-    animator = Animator(xlabel='epoch', ylabel='perplexity',
-                            legend=['train'], xlim=[10, num_epochs])
+    animator = Animator(xlabel='epoch', ylabel='perplexity',legend=['train'], xlim=[10, num_epochs])
     predict = lambda prefix: predict_rnn(prefix, 50, net, vocab)
     # Train and predict
     for epoch in range(num_epochs):
@@ -382,3 +378,4 @@ class RNNModel(tf.keras.layers.Layer):
 
     def begin_state(self, *args, **kwargs):
         return self.rnn.cell.get_initial_state(*args, **kwargs)
+# %%
