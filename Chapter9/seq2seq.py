@@ -81,6 +81,7 @@ state = decoder.init_state(encoder(X,sample_hidden))
 print(state.shape)
 output, state = decoder(X, state)
 output.shape, state.shape
+
 #%%
 
 optimizer = tf.keras.optimizers.Adam()
