@@ -138,8 +138,7 @@ def train_ch8(net, train_iter, vocab, num_hiddens, lr, num_epochs, strategy,
         params = get_params(len(vocab), num_hiddens)
         loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
         updater = tf.keras.optimizers.SGD(lr)
-    animator = Animator(xlabel='epoch', ylabel='perplexity',
-                            legend=['train'], xlim=[10, num_epochs])
+    animator = Animator(xlabel='epoch', ylabel='perplexity',legend=['train'], xlim=[10, num_epochs])
     predict = lambda prefix: predict_ch8(prefix, 50, net, vocab, params)
     # Train and predict
     for epoch in range(num_epochs):
