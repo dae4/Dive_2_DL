@@ -47,7 +47,7 @@ def rnn(inputs, state, params):
     return tf.concat(outputs, axis=0), (H,)
     
 # %%
-class RNNModelScratch: #@save
+class RNNModelScratch: 
     """A RNN Model implemented from scratch."""
     def __init__(self, vocab_size, num_hiddens,
                  init_state, forward_fn):

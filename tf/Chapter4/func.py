@@ -2,6 +2,7 @@ import tensorflow as tf
 from IPython import display
 import matplotlib.pyplot as plt
 import numpy as np
+import time
 
 def load_data_fashion_mnist(batch_size,resize=None):
     mnist_train,mnist_test = tf.keras.datasets.fashion_mnist.load_data()
@@ -125,7 +126,7 @@ def evaluate_accuracy(net, data_iter):
     return metric[0] / metric[1]
 
 def train(net, train_iter, test_iter, loss, num_epochs, updater):
-
+    
     animator = Animator(xlabel='epoch', xlim=[1, num_epochs], ylim=[0.3, 0.9],
                         legend=['train loss', 'train acc', 'test acc'])
     for epoch in range(num_epochs):
@@ -203,3 +204,37 @@ def evaluate_loss(net, data_iter, loss):
         l = loss(net(X), y)
         metric.add(tf.reduce_sum(l), tf.size(l))
     return metric[0] / metric[1]
+
+
+class Timer:
+    """Record multiple running times."""
+    def __init__(self):
+        self.times = []
+        self.start()
+
+    def start(self):
+        """Start the timer."""
+        self.tik = time.time()
+
+    def stop(self):
+        """Stop the timer and record the time in a list."""
+        self.times.append(time.time() - self.tik)
+        return self.times[-1]
+
+    def avg(self):
+        """Return the average time."""
+        return sum(self.times) / len(self.times)
+
+    def sum(self):
+        """Return the sum of time."""
+        return sum(self.times)
+
+    def cumsum(self):
+        """Return the accumulated time."""
+        return np.array(self.times).cumsum().tolist()
+
+def try_gpu(i=0):
+    """Return gpu(i) if exists, otherwise return cpu()."""
+    if len(tf.config.experimental.list_physical_devices('GPU')) >= i + 1:
+        return tf.device(f'/GPU:{i}')
+    return tf.device('/CPU:0')

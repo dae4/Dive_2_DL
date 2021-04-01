@@ -1,6 +1,7 @@
 #%%
 import tensorflow as tf
 from func import *
+
 def LeNet():
     return tf.keras.models.Sequential([
         tf.keras.layers.Conv2D(filters=6,kernel_size=5,activation='sigmoid',padding='same'),
@@ -19,7 +20,6 @@ for layer in LeNet().layers:
     X = layer(X)
     print(layer.__class__.__name__, 'output shape: \t', X.shape)
 # %%
-
 batch_size = 256
 train_iter, test_iter = load_data_fashion_mnist(batch_size=batch_size)
 # %%
@@ -40,7 +40,7 @@ class TrainCallback(tf.keras.callbacks.Callback):  #@save
     def on_epoch_end(self, epoch, logs):
         self.timer.stop()
         test_acc = self.net.evaluate(
-            self.test_iter, verbose=0, return_dict=True)['accuracy']
+            self.test_iter, verbose=0)[0]
         metrics = (logs['loss'], logs['accuracy'], test_acc)
         self.animator.add(epoch + 1, metrics)
         if epoch == self.num_epochs - 1:
@@ -76,4 +76,3 @@ def train(net_fn, train_iter, test_iter, num_epochs, lr,
 # %%
 lr, num_epochs = 0.9, 10
 train(LeNet, train_iter, test_iter, num_epochs, lr)
-# %%

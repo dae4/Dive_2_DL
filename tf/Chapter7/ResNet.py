@@ -81,3 +81,18 @@ lr, num_epochs, batch_size = 0.05, 10, 256
 train_iter, test_iter = load_data_fashion_mnist(batch_size, resize=96)
 train(net, train_iter, test_iter, num_epochs, lr)
 # %%
+gpus = tf.config.experimental.list_physical_devices('GPU')
+if gpus:
+  try:
+    # Currently, memory growth needs to be the same across GPUs
+    for gpu in gpus:
+      tf.config.experimental.set_memory_growth(gpu, True)
+    logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+    print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+  except RuntimeError as e:
+    # Memory growth must be set before GPUs have been initialized
+    print(e)
+# %%
+gpus = tf.config.experimental.list_physical_devices('GPU')
+print(gpus)
+# %%
