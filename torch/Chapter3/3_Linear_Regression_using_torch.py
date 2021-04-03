@@ -1,3 +1,4 @@
+#%%
 import numpy as np
 import torch
 from torch.utils import data
@@ -40,3 +41,4 @@ w = net[0].weight.data
 print('error in estimating w:', true_w - torch.reshape(w, true_w.shape))
 b = net[0].bias.data
 print('error in estimating b:', true_b - b)
+# %%
