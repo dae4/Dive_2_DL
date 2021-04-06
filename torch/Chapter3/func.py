@@ -110,6 +110,24 @@ class Animator:  #@save
         display.display(self.fig)
         display.clear_output(wait=True)
 #%%
+
+def accuracy(y_hat, y):  #@save
+    """Compute the number of correct predictions."""
+    if len(y_hat.shape) > 1 and y_hat.shape[1] > 1:
+        y_hat = torch.argmax(y_hat, axis=1)
+    cmp = torch.as_tensor(y_hat, dtype=y.dtype) == y
+    return float(torch.sum(torch.as_tensor(cmp, dtype=y.dtype)))
+
+def evaluate_accuracy(net, data_iter):  #@save
+    """Compute the accuracy for a model on a dataset."""
+    if isinstance(net, torch.nn.Module):
+        net.eval()  # Set the model to evaluation mode
+    metric = Accumulator(2)  # No. of correct predictions, no. of predictions
+    for X, y in data_iter:
+        metric.add(accuracy(net(X), y), len(y))
+    return metric[0] / metric[1]
+
+
 def train_epoch(net, train_iter, loss, updater):  #@save
     """The training loop defined in Chapter 3."""
     # Set the model to training mode
@@ -126,8 +144,7 @@ def train_epoch(net, train_iter, loss, updater):  #@save
             updater.zero_grad()
             l.backward()
             updater.step()
-            metric.add(float(l) * len(y), accuracy(y_hat, y),
-                       y.numel())
+            metric.add(float(l) * len(y), accuracy(y_hat, y), y.numel())
         else:
             # Using custom built optimizer & loss criterion
             l.sum().backward()
