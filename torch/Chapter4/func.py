@@ -124,7 +124,7 @@ def evaluate_accuracy(net, data_iter):  #@save
         net.eval()  # Set the model to evaluation mode
     metric = Accumulator(2)  # No. of correct predictions, no. of predictions
     for X, y in data_iter:
-        metric.add(accuracy(net(X), y), len(y))
+        metric.add(accuracy(net(X), y), y.numel())
     return metric[0] / metric[1]
 
 
@@ -194,3 +194,8 @@ def predict(net, test_iter, n=6):
     titles = [true +'\n' + pred for true, pred in zip(trues, preds)]
     show_images(
         torch.reshape(X[0:n], (n, 28, 28)), 1, n, titles=titles[0:n])
+
+def load_array(data_arrays, batch_size, is_train=True):
+    """Construct a PyTorch data iterator."""
+    dataset = data.TensorDataset(*data_arrays)
+    return data.DataLoader(dataset, batch_size, shuffle=is_train)
