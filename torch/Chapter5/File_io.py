@@ -34,5 +34,9 @@ Y = net(X)
 # %%
 torch.save(net.state_dict(), 'mlp.params')
 # %%
+clone = MLP()
+clone.load_weights("mlp.params")
+#%%
 Y_clone = clone(X)
 Y_clone == Y
+# %%
