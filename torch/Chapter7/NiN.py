@@ -1,3 +1,4 @@
+#%%
 import torch
 from torch import nn
 from func import *
@@ -25,7 +26,8 @@ X = torch.rand(size=(1, 1, 224, 224))
 for layer in net:
     X = layer(X)
     print(layer.__class__.__name__,'output shape:\t', X.shape)
-
+#%%
 lr, num_epochs, batch_size = 0.1, 10, 128
 train_iter, test_iter = load_data_fashion_mnist(batch_size, resize=224)
 train(net, train_iter, test_iter, num_epochs, lr, try_gpu())
+# %%
