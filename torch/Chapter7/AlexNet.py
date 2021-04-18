@@ -1,6 +1,7 @@
-from d2l import torch as d2l
+#%%
 import torch
 from torch import nn
+from func import *
 
 net = nn.Sequential(
     nn.Conv2d(1, 96, kernel_size=11, stride=4, padding=1), nn.ReLU(),
@@ -22,3 +23,10 @@ X = torch.randn(1, 1, 224, 224)
 for layer in net:
     X=layer(X)
     print(layer.__class__.__name__,'output shape:\t',X.shape)
+# %%
+batch_size = 128
+train_iter, test_iter = load_data_fashion_mnist(batch_size, resize=224)
+# %%
+lr, num_epochs = 0.01, 10
+train(net, train_iter, test_iter, num_epochs, lr, try_gpu())
+# %%
