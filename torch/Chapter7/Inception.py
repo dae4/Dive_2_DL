@@ -68,3 +68,4 @@ for layer in net:
 lr, num_epochs, batch_size = 0.1, 10, 128
 train_iter, test_iter = load_data_fashion_mnist(batch_size, resize=96)
 train(net, train_iter, test_iter, num_epochs, lr, try_gpu())
+# %%
