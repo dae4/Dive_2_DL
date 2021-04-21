@@ -6,8 +6,8 @@ import os
 import hashlib 
 import requests
 import collections
-import random
 import re
+import random
 
 def use_svg_display():
     """Use the svg format to display a plot in Jupyter."""
@@ -92,7 +92,7 @@ def evaluate_loss(net, data_iter, loss):
 
 DATA_HUB = dict()
 DATA_URL = 'http://d2l-data.s3-accelerate.amazonaws.com/'
-
+DATA_HUB['time_machine'] = (DATA_URL + 'timemachine.txt','090b5e7e70c295757f55df93cb0a180b9691891a')
 def download(name, cache_dir=os.path.join('..', 'data')):
     """Download a file inserted into DATA_HUB, return the local filename."""
     assert name in DATA_HUB, f"{name} does not exist in {DATA_HUB}."
@@ -156,23 +156,6 @@ def count_corpus(tokens):
         tokens = [token for line in tokens for token in line]
     return collections.Counter(tokens)
 
-def read_time_machine():
-    """Load the time machine dataset into a list of text lines."""
-    with open(download('time_machine'), 'r') as f:
-        lines = f.readlines()
-    return [re.sub('[^A-Za-z]+', ' ', line).strip().lower() for line in lines]
-
-
-# Defined in file: ./chapter_recurrent-neural-networks/text-preprocessing.md
-def tokenize(lines, token='word'):
-    """Split text lines into word or character tokens."""
-    if token == 'word':
-        return [line.split() for line in lines]
-    elif token == 'char':
-        return [list(line) for line in lines]
-    else:
-        print('ERROR: unknown token type: ' + token)
-
 def load_corpus_time_machine(max_tokens=-1):  
     """Return token indices and the vocabulary of the time machine dataset."""
     lines = read_time_machine()
@@ -185,21 +168,22 @@ def load_corpus_time_machine(max_tokens=-1):
         corpus = corpus[:max_tokens]
     return corpus, vocab    
 
-def seq_data_iter_sequential(corpus, batch_size, num_steps):
-    """Generate a minibatch of subsequences using sequential partitioning."""
-    # Start with a random offset to partition a sequence
-    offset = random.randint(0, num_steps)
-    num_tokens = ((len(corpus) - offset - 1) // batch_size) * batch_size
-    Xs = torch.tensor(corpus[offset:offset + num_tokens])
-    Ys = torch.tensor(corpus[offset + 1:offset + 1 + num_tokens])
-    Xs, Ys = Xs.reshape(batch_size, -1), Ys.reshape(batch_size, -1)
-    num_batches = Xs.shape[1] // num_steps
-    for i in range(0, num_steps * num_batches, num_steps):
-        X = Xs[:, i:i + num_steps]
-        Y = Ys[:, i:i + num_steps]
-        yield X, Y
+def tokenize(lines, token='word'): 
+    """Split text lines into word or character tokens."""
+    if token == 'word':
+        return [line.split() for line in lines]
+    elif token == 'char':
+        return [list(line) for line in lines]
+    else:
+        print('ERROR: unknown token type: ' + token)
 
-def seq_data_iter_random(corpus, batch_size, num_steps):
+def read_time_machine(): 
+    """Load the time machine dataset into a list of text lines."""
+    with open(download('time_machine'), 'r') as f:
+        lines = f.readlines()
+    return [re.sub('[^A-Za-z]+', ' ', line).strip().lower() for line in lines]
+
+def seq_data_iter_random(corpus, batch_size, num_steps):  #@save
     """Generate a minibatch of subsequences using random sampling."""
     # Start with a random offset (inclusive of `num_steps - 1`) to partition a
     # sequence
@@ -215,21 +199,36 @@ def seq_data_iter_random(corpus, batch_size, num_steps):
 
     def data(pos):
         # Return a sequence of length `num_steps` starting from `pos`
-        return corpus[pos:pos + num_steps]
+        return corpus[pos: pos + num_steps]
 
     num_batches = num_subseqs // batch_size
     for i in range(0, batch_size * num_batches, batch_size):
         # Here, `initial_indices` contains randomized starting indices for
         # subsequences
-        initial_indices_per_batch = initial_indices[i:i + batch_size]
+        initial_indices_per_batch = initial_indices[i: i + batch_size]
         X = [data(j) for j in initial_indices_per_batch]
         Y = [data(j + 1) for j in initial_indices_per_batch]
         yield torch.tensor(X), torch.tensor(Y)
 
-class SeqDataLoader:
+def seq_data_iter_sequential(corpus, batch_size, num_steps):
+    """Generate a minibatch of subsequences using sequential partitioning."""
+    # Start with a random offset to partition a sequence
+    offset = random.randint(0, num_steps)
+    num_tokens = ((len(corpus) - offset - 1) // batch_size) * batch_size
+    Xs = torch.tensor(corpus[offset: offset + num_tokens])
+    Ys = torch.tensor(corpus[offset + 1: offset + 1 + num_tokens])
+    Xs, Ys = Xs.reshape(batch_size, -1), Ys.reshape(batch_size, -1)
+    num_batches = Xs.shape[1] // num_steps
+    for i in range(0, num_steps * num_batches, num_steps):
+        X = Xs[:, i: i + num_steps]
+        Y = Ys[:, i: i + num_steps]
+        yield X, Y
+
+class SeqDataLoader:  #@save
     """An iterator to load sequence data."""
     def __init__(self, batch_size, num_steps, use_random_iter, max_tokens):
         if use_random_iter:
+        self.corpus, self.vocab = load_corpus_time_machine(max_tokens)
             self.data_iter_fn = seq_data_iter_random
         else:
             self.data_iter_fn = seq_data_iter_sequential
@@ -239,10 +238,7 @@ class SeqDataLoader:
     def __iter__(self):
         return self.data_iter_fn(self.corpus, self.batch_size, self.num_steps)
 
-
-def load_data_time_machine(batch_size, num_steps, use_random_iter=False,
-                           max_tokens=10000):
+def load_data_time_machine(batch_size, num_steps,  use_random_iter=False, max_tokens=10000):
     """Return the iterator and the vocabulary of the time machine dataset."""
-    data_iter = SeqDataLoader(batch_size, num_steps, use_random_iter,
-                              max_tokens)
+    data_iter = SeqDataLoader( batch_size, num_steps, use_random_iter, max_tokens)
     return data_iter, data_iter.vocab

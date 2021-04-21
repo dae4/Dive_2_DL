@@ -5,7 +5,7 @@ from func import *
 
 DATA_HUB['time_machine'] = (DATA_URL + 'timemachine.txt','090b5e7e70c295757f55df93cb0a180b9691891a')
 
-def read_time_machine():  #@save
+def read_time_machine(): 
     """Load the time machine dataset into a list of text lines."""
     with open(download('time_machine'), 'r') as f:
         lines = f.readlines()
@@ -16,7 +16,7 @@ print(f'# text lines: {len(lines)}')
 print(lines[0])
 print(lines[10])
 # %%
-def tokenize(lines, token='word'):  #@save
+def tokenize(lines, token='word'): 
     """Split text lines into word or character tokens."""
     if token == 'word':
         return [line.split() for line in lines]
