@@ -3,6 +3,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 from func import *
+import func
 
 batch_size, num_steps = 32, 35
 train_iter, vocab = load_data_time_machine(batch_size, num_steps)
@@ -61,7 +62,9 @@ class RNNModel(nn.Module):
 device = try_gpu()
 net = RNNModel(rnn_layer, vocab_size=len(vocab))
 net = net.to(device)
-predict('time traveller', 10, net, vocab, device)
+predict_rnn('time traveller', 10, net, vocab, device)
 # %%
 num_epochs, lr = 500, 1
+
 train(net, train_iter, vocab, lr, num_epochs, device)
+# %%

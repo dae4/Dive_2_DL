@@ -253,11 +253,11 @@ def try_gpu(i=0):
         return torch.device(f'cuda:{i}')
     return torch.device('cpu')
 
-def predict(prefix, num_preds, net, vocab, device):  
+def predict_rnn(prefix, num_preds, net, vocab, device):
+    """Generate new characters following the `prefix`."""
     state = net.begin_state(batch_size=1, device=device)
     outputs = [vocab[prefix[0]]]
-    get_input = lambda: torch.reshape(torch.tensor(
-        [outputs[-1]], device=device), (1, 1))
+    get_input = lambda: torch.reshape(torch.tensor([outputs[-1]], device=device),(1, 1))
     for y in prefix[1:]:  # Warm-up period
         _, state = net(get_input(), state)
         outputs.append(vocab[y])
@@ -371,6 +371,7 @@ def grad_clipping(net, theta):
         for param in params:
             param.grad[:] *= theta / norm
 
+
 def train_epoch(net, train_iter, loss, updater, device, use_random_iter):
     """Train a net within one epoch (defined in Chapter 8)."""
     state, timer = None, Timer()
@@ -406,8 +407,7 @@ def train_epoch(net, train_iter, loss, updater, device, use_random_iter):
         metric.add(l * len(y), len(y))
     return math.exp(metric[0] / metric[1]), metric[1] / timer.stop()
 
-def train(net, train_iter, vocab, lr, num_epochs, device,
-              use_random_iter=False):
+def train(net, train_iter, vocab, lr, num_epochs, device, use_random_iter=False):
     """Train a model (defined in Chapter 8)."""
     loss = nn.CrossEntropyLoss()
     animator = Animator(xlabel='epoch', ylabel='perplexity',
@@ -417,7 +417,7 @@ def train(net, train_iter, vocab, lr, num_epochs, device,
         updater = torch.optim.SGD(net.parameters(), lr)
     else:
         updater = lambda batch_size: torch.sgd(net.params, lr, batch_size)
-    predict = lambda prefix: predict(prefix, 50, net, vocab, device)
+    predict = lambda prefix: predict_rnn(prefix, 50, net, vocab, device)
     # Train and predict
     for epoch in range(num_epochs):
         ppl, speed = train_epoch(
