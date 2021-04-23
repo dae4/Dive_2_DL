@@ -12,6 +12,7 @@ import numpy as np
 import torch.nn as nn
 import time
 import math
+from torch.nn import functional as F
 
 def use_svg_display():
     """Use the svg format to display a plot in Jupyter."""
@@ -253,11 +254,11 @@ def try_gpu(i=0):
         return torch.device(f'cuda:{i}')
     return torch.device('cpu')
 
-def predict(prefix, num_preds, net, vocab, device):  
+def predict_rnn(prefix, num_preds, net, vocab, device):
+    """Generate new characters following the `prefix`."""
     state = net.begin_state(batch_size=1, device=device)
     outputs = [vocab[prefix[0]]]
-    get_input = lambda: torch.reshape(torch.tensor(
-        [outputs[-1]], device=device), (1, 1))
+    get_input = lambda: torch.reshape(torch.tensor([outputs[-1]], device=device),(1, 1))
     for y in prefix[1:]:  # Warm-up period
         _, state = net(get_input(), state)
         outputs.append(vocab[y])
@@ -371,6 +372,7 @@ def grad_clipping(net, theta):
         for param in params:
             param.grad[:] *= theta / norm
 
+
 def train_epoch(net, train_iter, loss, updater, device, use_random_iter):
     """Train a net within one epoch (defined in Chapter 8)."""
     state, timer = None, Timer()
@@ -406,8 +408,14 @@ def train_epoch(net, train_iter, loss, updater, device, use_random_iter):
         metric.add(l * len(y), len(y))
     return math.exp(metric[0] / metric[1]), metric[1] / timer.stop()
 
-def train(net, train_iter, vocab, lr, num_epochs, device,
-              use_random_iter=False):
+def sgd(params, lr, batch_size):
+    """Minibatch stochastic gradient descent."""
+    with torch.no_grad():
+        for param in params:
+            param -= lr * param.grad / batch_size
+            param.grad.zero_()
+
+def train(net, train_iter, vocab, lr, num_epochs, device, use_random_iter=False):
     """Train a model (defined in Chapter 8)."""
     loss = nn.CrossEntropyLoss()
     animator = Animator(xlabel='epoch', ylabel='perplexity',
@@ -416,8 +424,8 @@ def train(net, train_iter, vocab, lr, num_epochs, device,
     if isinstance(net, nn.Module):
         updater = torch.optim.SGD(net.parameters(), lr)
     else:
-        updater = lambda batch_size: torch.sgd(net.params, lr, batch_size)
-    predict = lambda prefix: predict(prefix, 50, net, vocab, device)
+        updater = lambda batch_size: sgd(net.params, lr, batch_size)
+    predict = lambda prefix: predict_rnn(prefix, 50, net, vocab, device)
     # Train and predict
     for epoch in range(num_epochs):
         ppl, speed = train_epoch(
@@ -469,3 +477,18 @@ class RNNModel(nn.Module):
                     torch.zeros((
                         self.num_directions * self.rnn.num_layers,
                         batch_size, self.num_hiddens), device=device))
+
+class RNNModelScratch: 
+    """A RNN Model implemented from scratch."""
+    def __init__(self, vocab_size, num_hiddens, device,
+                 get_params, init_state, forward_fn):
+        self.vocab_size, self.num_hiddens = vocab_size, num_hiddens
+        self.params = get_params(vocab_size, num_hiddens, device)
+        self.init_state, self.forward_fn = init_state, forward_fn
+
+    def __call__(self, X, state):
+        X = F.one_hot(X.T, self.vocab_size).type(torch.float32)
+        return self.forward_fn(X, state, self.params)
+
+    def begin_state(self, batch_size, device):
+        return self.init_state(batch_size, self.num_hiddens, device)

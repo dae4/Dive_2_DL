@@ -3,6 +3,7 @@ import torch
 from torch import nn
 from func import *
 
+
 batch_size, num_steps = 32, 35
 train_iter, vocab = load_data_time_machine(batch_size, num_steps)
 
@@ -52,7 +53,7 @@ num_epochs, lr = 500, 1
 model = RNNModelScratch(len(vocab), num_hiddens, device, get_params,
                             init_gru_state, gru)
 train(model, train_iter, vocab, lr, num_epochs, device)
-
+#%%
 num_inputs = vocab_size
 gru_layer = nn.GRU(num_inputs, num_hiddens)
 model = RNNModel(gru_layer, len(vocab))
