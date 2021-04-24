@@ -13,6 +13,7 @@ import torch.nn as nn
 import time
 import math
 from torch.nn import functional as F
+import zipfile
 
 def use_svg_display():
     """Use the svg format to display a plot in Jupyter."""
@@ -492,3 +493,62 @@ class RNNModelScratch:
 
     def begin_state(self, batch_size, device):
         return self.init_state(batch_size, self.num_hiddens, device)
+
+def download_extract(name, folder=None):
+    """Download and extract a zip/tar file."""
+    fname = download(name)
+    base_dir = os.path.dirname(fname)
+    data_dir, ext = os.path.splitext(fname)
+    if ext == '.zip':
+        fp = zipfile.ZipFile(fname, 'r')
+    elif ext in ('.tar', '.gz'):
+        fp = tarfile.open(fname, 'r')
+    else:
+        assert False, 'Only zip/tar files can be extracted.'
+    fp.extractall(base_dir)
+    return os.path.join(base_dir, folder) if folder else data_dir
+
+def download_all():
+    """Download all files in the DATA_HUB."""
+    for name in DATA_HUB:
+        download(name)
+
+DATA_HUB['fra-eng'] = (DATA_URL + 'fra-eng.zip','94646ad1522d915e7b0f9296181140edcf86a4f5')
+
+def read_data_nmt():
+    """Load the English-French dataset."""
+    data_dir = download_extract('fra-eng')
+    with open(os.path.join(data_dir, 'fra.txt'), 'r') as f:
+        return f.read()
+
+def preprocess_nmt(text):
+    """Preprocess the English-French dataset."""
+    def no_space(char, prev_char):
+        return char in set(',.!?') and prev_char != ' '
+
+    # Replace non-breaking space with space, and convert uppercase letters to
+    # lowercase ones
+    text = text.replace('\u202f', ' ').replace('\xa0', ' ').lower()
+    # Insert space between words and punctuation marks
+    out = [' ' + char if i > 0 and no_space(char, text[i - 1]) else char
+           for i, char in enumerate(text)]
+    return ''.join(out)
+
+def tokenize_nmt(text, num_examples=None):
+    """Tokenize the English-French dataset."""
+    source, target = [], []
+    for i, line in enumerate(text.split('\n')):
+        if num_examples and i > num_examples:
+            break
+        parts = line.split('\t')
+        if len(parts) == 2:
+            source.append(parts[0].split(' '))
+            target.append(parts[1].split(' '))
+    return source, target
+
+def truncate_pad(line, num_steps, padding_token):
+    """Truncate or pad sequences."""
+    if len(line) > num_steps:
+        return line[:num_steps]  # Truncate
+    return line + [padding_token] * (num_steps - len(line))  # Pad
+
