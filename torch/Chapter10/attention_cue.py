@@ -1,6 +1,7 @@
+#%%
 import torch
 from IPython import display
-import matplot.pyplot as plt
+import matplotlib.pyplot as plt
 
 def use_svg_display():
     """Use the svg format to display a plot in Jupyter."""
@@ -25,3 +26,4 @@ def show_heatmaps(matrices, xlabel, ylabel, titles=None, figsize=(2.5, 2.5),
 
 attention_weights = torch.reshape(torch.eye(10), (1, 1, 10, 10))
 show_heatmaps(attention_weights, xlabel='Keys', ylabel='Queries')
+# %%
