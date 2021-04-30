@@ -2,10 +2,8 @@
 import torch
 from IPython import display
 import matplotlib.pyplot as plt
+from func import*
 
-def use_svg_display():
-    """Use the svg format to display a plot in Jupyter."""
-    display.set_matplotlib_formats('svg')
 
 def show_heatmaps(matrices, xlabel, ylabel, titles=None, figsize=(2.5, 2.5),
                   cmap='Reds'):
@@ -15,7 +13,7 @@ def show_heatmaps(matrices, xlabel, ylabel, titles=None, figsize=(2.5, 2.5),
                                  sharex=True, sharey=True, squeeze=False)
     for i, (row_axes, row_matrices) in enumerate(zip(axes, matrices)):
         for j, (ax, matrix) in enumerate(zip(row_axes, row_matrices)):
-            pcm = ax.imshow(tensor(matrix), cmap=cmap)
+            pcm = ax.imshow(torch.tensor(matrix), cmap=cmap)
             if i == num_rows - 1:
                 ax.set_xlabel(xlabel)
             if j == 0:
