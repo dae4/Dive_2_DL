@@ -88,4 +88,4 @@ attention.eval()
 attention(queries, keys, values, valid_lens)
 # %%
 show_heatmaps(torch.reshape(attention.attention_weights, (1, 1, 2, 10)), xlabel='Keys', ylabel='Queries')
-# %%
+
