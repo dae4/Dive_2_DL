@@ -3,7 +3,7 @@ import numpy as np
 from mpl_toolkits import mplot3d
 import torch
 from func import *
-import matplotlib.pylib as plt
+import matplotlib.pyplot as plt
 
 def f(x):
     return x * torch.cos(np.pi * x)
