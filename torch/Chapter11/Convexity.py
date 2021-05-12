@@ -18,4 +18,4 @@ for ax, func in zip(axes, [f, g, h]):
 f = lambda x: (x - 1) ** 2
 set_figsize()
 plot([x, segment], [f(x), f(segment)], 'x', 'f(x)')
-# %%
+# %%   
