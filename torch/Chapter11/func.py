@@ -858,3 +858,21 @@ def show_trace_2d(f, results):  #@save
     x1, x2 = torch.meshgrid(torch.arange(-5.5, 1.0, 0.1),torch.arange(-3.0, 1.0, 0.1))
     plt.contour(x1, x2, f(x1, x2), colors='#1f77b4')
     plt.xlabel('x1')
+
+def linreg(X, w, b):
+    """The linear regression model."""
+    return torch.matmul(X, w) + b
+
+def squared_loss(y_hat, y):
+    """Squared loss."""
+    return (y_hat - torch.reshape(y, y_hat.shape))**2 / 2
+
+def evaluate_loss(net, data_iter, loss):  
+    """Evaluate the loss of a model on the given dataset."""
+    metric = Accumulator(2)  # Sum of losses, no. of examples
+    for X, y in data_iter:
+        out = net(X)
+        y = torch.reshape(y, out.shape)
+        l = loss(out, y)
+        metric.add(torch.sum(l), l.numel())
+    return metric[0] / metric[1]
