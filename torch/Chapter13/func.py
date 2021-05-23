@@ -13,7 +13,53 @@ import torch.nn as nn
 import time
 import math
 from torch.nn import functional as F
+import zipfile
+import tarfile
 
+
+DATA_HUB = dict()
+DATA_URL = 'http://d2l-data.s3-accelerate.amazonaws.com/'
+DATA_HUB['time_machine'] = (DATA_URL + 'timemachine.txt','090b5e7e70c295757f55df93cb0a180b9691891a')
+DATA_HUB['fra-eng'] = (DATA_URL + 'fra-eng.zip','94646ad1522d915e7b0f9296181140edcf86a4f5')
+DATA_HUB['hotdog'] = (DATA_URL + 'hotdog.zip', 'fba480ffa8aa7e0febbb511d181409f899b9baa5')
+
+
+def download(name, cache_dir=os.path.join('..', 'data')):
+    """Download a file inserted into DATA_HUB, return the local filename."""
+    assert name in DATA_HUB, f"{name} does not exist in {DATA_HUB}."
+    url, sha1_hash = DATA_HUB[name]
+    os.makedirs(cache_dir, exist_ok=True)
+    fname = os.path.join(cache_dir, url.split('/')[-1])
+    if os.path.exists(fname):
+        sha1 = hashlib.sha1()
+        with open(fname, 'rb') as f:
+            while True:
+                data = f.read(1048576)
+                if not data:
+                    break
+                sha1.update(data)
+        if sha1.hexdigest() == sha1_hash:
+            return fname  # Hit cache
+    print(f'Downloading {fname} from {url}...')
+    r = requests.get(url, stream=True, verify=True)
+    with open(fname, 'wb') as f:
+        f.write(r.content)
+    return fname
+
+
+def download_extract(name, folder=None):
+    """Download and extract a zip/tar file."""
+    fname = download(name)
+    base_dir = os.path.dirname(fname)
+    data_dir, ext = os.path.splitext(fname)
+    if ext == '.zip':
+        fp = zipfile.ZipFile(fname, 'r')
+    elif ext in ('.tar', '.gz'):
+        fp = tarfile.open(fname, 'r')
+    else:
+        assert False, 'Only zip/tar files can be extracted.'
+    fp.extractall(base_dir)
+    return os.path.join(base_dir, folder) if folder else data_dir
 def use_svg_display():
     """Use the svg format to display a plot in Jupyter."""
     display.set_matplotlib_formats('svg')
@@ -261,3 +307,49 @@ def resnet18(num_classes, in_channels=1):
     net.add_module("fc",
                    nn.Sequential(nn.Flatten(), nn.Linear(512, num_classes)))
     return net
+    
+def train_batch_ch13(net, X, y, loss, trainer, devices):
+    """Train for a minibatch with mutiple GPUs (defined in Chapter 13)."""
+    if isinstance(X, list):
+        # Required for BERT fine-tuning (to be covered later)
+        X = [x.to(devices[0]) for x in X]
+    else:
+        X = X.to(devices[0])
+    y = y.to(devices[0])
+    net.train()
+    trainer.zero_grad()
+    pred = net(X)
+    l = loss(pred, y)
+    l.sum().backward()
+    trainer.step()
+    train_loss_sum = l.sum()
+    train_acc_sum = accuracy(pred, y)
+    return train_loss_sum, train_acc_sum
+
+def train_ch13(net, train_iter, test_iter, loss, trainer, num_epochs,
+               devices=try_all_gpus()):
+    """Train a model with mutiple GPUs (defined in Chapter 13)."""
+    timer, num_batches = Timer(), len(train_iter)
+    animator = Animator(xlabel='epoch', xlim=[1, num_epochs], ylim=[0, 1],
+                            legend=['train loss', 'train acc', 'test acc'])
+    net = nn.DataParallel(net, device_ids=devices).to(devices[0])
+    for epoch in range(num_epochs):
+        # Sum of training loss, sum of training accuracy, no. of examples,
+        # no. of predictions
+        metric = Accumulator(4)
+        for i, (features, labels) in enumerate(train_iter):
+            timer.start()
+            l, acc = train_batch_ch13(
+                net, features, labels, loss, trainer, devices)
+            metric.add(l, acc, labels.shape[0], labels.numel())
+            timer.stop()
+            if (i + 1) % (num_batches // 5) == 0 or i == num_batches - 1:
+                animator.add(epoch + (i + 1) / num_batches,
+                             (metric[0] / metric[2], metric[1] / metric[3],
+                              None))
+        test_acc = evaluate_accuracy_gpu(net, test_iter)
+        animator.add(epoch + 1, (None, None, test_acc))
+    print(f'loss {metric[0] / metric[2]:.3f}, train acc '
+          f'{metric[1] / metric[3]:.3f}, test acc {test_acc:.3f}')
+    print(f'{metric[2] * num_epochs / timer.sum():.1f} examples/sec on '
+          f'{str(devices)}')
