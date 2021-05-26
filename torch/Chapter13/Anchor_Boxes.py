@@ -185,3 +185,86 @@ labels[2]
 labels[1]
 # %%
 labels[0]
+# %%
+## Predicting Bounding Boxes with Non-Maximum Suppression
+def offset_inverse(anchors, offset_preds):
+    """Predict bounding boxes based on anchor boxes with predicted offsets."""
+    anc = box_corner_to_center(anchors)
+    pred_bbox_xy = (offset_preds[:, :2] * anc[:, 2:] / 10) + anc[:, :2]
+    pred_bbox_wh = torch.exp(offset_preds[:, 2:] / 5) * anc[:, 2:]
+    pred_bbox = torch.cat((pred_bbox_xy, pred_bbox_wh), axis=1)
+    predicted_bbox = box_center_to_corner(pred_bbox)
+    return predicted_bbox
+# %%
+def nms(boxes, scores, iou_threshold):
+    """Sort confidence scores of predicted bounding boxes."""
+    B = torch.argsort(scores, dim=-1, descending=True)
+    keep = []  # Indices of predicted bounding boxes that will be kept
+    while B.numel() > 0:
+        i = B[0]
+        keep.append(i)
+        if B.numel() == 1: break
+        iou = box_iou(boxes[i, :].reshape(-1, 4),
+                      boxes[B[1:], :].reshape(-1, 4)).reshape(-1)
+        inds = torch.nonzero(iou <= iou_threshold).reshape(-1)
+        B = B[inds + 1]
+    return torch.tensor(keep, device=boxes.device)
+# %%
+def multibox_detection(cls_probs, offset_preds, anchors, nms_threshold=0.5,
+                       pos_threshold=0.009999999):
+    """Predict bounding boxes using non-maximum suppression."""
+    device, batch_size = cls_probs.device, cls_probs.shape[0]
+    anchors = anchors.squeeze(0)
+    num_classes, num_anchors = cls_probs.shape[1], cls_probs.shape[2]
+    out = []
+    for i in range(batch_size):
+        cls_prob, offset_pred = cls_probs[i], offset_preds[i].reshape(-1, 4)
+        conf, class_id = torch.max(cls_prob[1:], 0)
+        predicted_bb = offset_inverse(anchors, offset_pred)
+        keep = nms(predicted_bb, conf, nms_threshold)
+        # Find all non-`keep` indices and set the class to background
+        all_idx = torch.arange(num_anchors, dtype=torch.long, device=device)
+        combined = torch.cat((keep, all_idx))
+        uniques, counts = combined.unique(return_counts=True)
+        non_keep = uniques[counts == 1]
+        all_id_sorted = torch.cat((keep, non_keep))
+        class_id[non_keep] = -1
+        class_id = class_id[all_id_sorted]
+        conf, predicted_bb = conf[all_id_sorted], predicted_bb[all_id_sorted]
+        # Here `pos_threshold` is a threshold for positive (non-background)
+        # predictions
+        below_min_idx = (conf < pos_threshold)
+        class_id[below_min_idx] = -1
+        conf[below_min_idx] = 1 - conf[below_min_idx]
+        pred_info = torch.cat((class_id.unsqueeze(1),
+                               conf.unsqueeze(1),
+                               predicted_bb), dim=1)
+        out.append(pred_info)
+    return torch.stack(out)
+# %%
+anchors = torch.tensor([[0.1, 0.08, 0.52, 0.92], [0.08, 0.2, 0.56, 0.95],
+                      [0.15, 0.3, 0.62, 0.91], [0.55, 0.2, 0.9, 0.88]])
+offset_preds = torch.tensor([0] * len(anchors))
+cls_probs = torch.tensor([[0] * 4,  # Predicted background likelihood 
+                      [0.9, 0.8, 0.7, 0.1],  # Predicted dog likelihood 
+                      [0.1, 0.2, 0.3, 0.9]])  # Predicted cat likelihood
+# %%
+fig = plt.imshow(img)
+show_bboxes(fig.axes, anchors * bbox_scale,
+            ['dog=0.9', 'dog=0.8', 'dog=0.7', 'cat=0.9'])
+# %%
+output = multibox_detection(cls_probs.unsqueeze(dim=0),
+                            offset_preds.unsqueeze(dim=0),
+                            anchors.unsqueeze(dim=0),
+                            nms_threshold=0.5)
+output
+
+# %%
+fig = plt.imshow(img)
+for i in torch.tensor(output[0]):
+    if i[0] == -1:
+        continue
+    label = ('dog=', 'cat=')[int(i[0])] + str(i[1])
+    show_bboxes(fig.axes, [torch.tensor(i[2:]) * bbox_scale], label)
+
+# %%
