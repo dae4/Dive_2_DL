@@ -55,3 +55,37 @@ W = bilinear_kernel(num_classes, num_classes, 64)
 net.transpose_conv.weight.data.copy_(W);
 
 # %%
+batch_size, crop_size = 32, (320, 480)
+train_iter, test_iter = load_data_voc(batch_size, crop_size)
+
+# %%
+def loss(inputs, targets):
+    return F.cross_entropy(inputs, targets, reduction='none').mean(1).mean(1)
+
+num_epochs, lr, wd, devices = 5, 0.001, 1e-3, try_all_gpus()
+trainer = torch.optim.SGD(net.parameters(), lr=lr, weight_decay=wd)
+train_ch13(net, train_iter, test_iter, loss, trainer, num_epochs, devices)
+# %%
+def predict(img):
+    X = test_iter.dataset.normalize_image(img).unsqueeze(0)
+    pred = net(X.to(devices[0])).argmax(dim=1)
+    return pred.reshape(pred.shape[1], pred.shape[2])
+
+# %%
+def label2image(pred):
+    colormap = torch.tensor(VOC_COLORMAP, device=devices[0])
+    X = pred.long()
+    return colormap[X, :]
+# %%
+voc_dir = download_extract('voc2012', 'VOCdevkit/VOC2012')
+test_images, test_labels = read_voc_images(voc_dir, False)
+n, imgs = 4, []
+for i in range(n):
+    crop_rect = (0, 0, 320, 480)
+    X = torchvision.transforms.functional.crop(test_images[i], *crop_rect)
+    pred = label2image(predict(X))
+    imgs += [X.permute(1,2,0), pred.cpu(),
+             torchvision.transforms.functional.crop(
+                 test_labels[i], *crop_rect).permute(1,2,0)]
+show_images(imgs[::3] + imgs[1::3] + imgs[2::3], 3, n, scale=2)
+# %%

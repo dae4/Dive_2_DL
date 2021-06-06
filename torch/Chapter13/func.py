@@ -17,7 +17,7 @@ import zipfile
 import tarfile
 import pandas as pd
 import torchvision
-
+import PIL.Image as Image
 
 DATA_HUB = dict()
 DATA_URL = 'http://d2l-data.s3-accelerate.amazonaws.com/'
@@ -659,15 +659,16 @@ def read_voc_images(voc_dir, is_train=True):
     """Read all VOC feature and label images."""
     txt_fname = os.path.join(voc_dir, 'ImageSets', 'Segmentation',
                              'train.txt' if is_train else 'val.txt')
-    mode = torchvision.io.image.ImageReadMode.RGB
     with open(txt_fname, 'r') as f:
         images = f.read().split()
     features, labels = [], []
     for i, fname in enumerate(images):
-        features.append(torchvision.io.read_image(os.path.join(
-            voc_dir, 'JPEGImages', f'{fname}.jpg')))
-        labels.append(torchvision.io.read_image(os.path.join(
-            voc_dir, 'SegmentationClass' ,f'{fname}.png'), mode))
+        features.append(
+            torchvision.io.read_image(
+                os.path.join(voc_dir, 'JPEGImages', f'{fname}.jpg')))
+        labels.append(
+            Image.open(
+                os.path.join(voc_dir, 'SegmentationClass', f'{fname}.png')))
     return features, labels
 
 VOC_COLORMAP = [[0, 0, 0], [128, 0, 0], [0, 128, 0], [128, 128, 0],
@@ -709,14 +710,14 @@ def voc_rand_crop(feature, label, height, width):
 
 class VOCSegDataset(torch.utils.data.Dataset):
     """A customized dataset to load VOC dataset."""
-
     def __init__(self, is_train, crop_size, voc_dir):
         self.transform = torchvision.transforms.Normalize(
             mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         self.crop_size = crop_size
         features, labels = read_voc_images(voc_dir, is_train=is_train)
-        self.features = [self.normalize_image(feature)
-                         for feature in self.filter(features)]
+        self.features = [
+            self.normalize_image(feature)
+            for feature in self.filter(features)]
         self.labels = self.filter(labels)
         self.colormap2label = build_colormap2label()
         print('read ' + str(len(self.features)) + ' examples')
@@ -725,9 +726,9 @@ class VOCSegDataset(torch.utils.data.Dataset):
         return self.transform(img.float())
 
     def filter(self, imgs):
-        return [img for img in imgs if (
-            img.shape[1] >= self.crop_size[0] and
-            img.shape[2] >= self.crop_size[1])]
+        return [
+            img for img in imgs if( np.array(img).shape[2] >= self.crop_size[0] and
+                                    np.array(img).shape[1] >= self.crop_size[1])]
 
     def __getitem__(self, idx):
         feature, label = voc_rand_crop(self.features[idx], self.labels[idx],
@@ -745,3 +746,16 @@ def corr2d(X, K):
         for j in range(Y.shape[1]):
             Y[i, j] = torch.sum((X[i:i + h, j:j + w] * K))
     return Y
+    
+def load_data_voc(batch_size, crop_size):
+    """Download and load the VOC2012 semantic dataset."""
+    voc_dir = download_extract('voc2012',
+                                   os.path.join('VOCdevkit', 'VOC2012'))
+    num_workers = get_dataloader_workers()
+    train_iter = torch.utils.data.DataLoader(
+        VOCSegDataset(True, crop_size, voc_dir), batch_size, shuffle=True,
+        drop_last=True, num_workers=num_workers)
+    test_iter = torch.utils.data.DataLoader(
+        VOCSegDataset(False, crop_size, voc_dir), batch_size, drop_last=True,
+        num_workers=num_workers)
+    return train_iter, test_iter
