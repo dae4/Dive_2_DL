@@ -8,4 +8,7 @@ from func import *
 
 set_figsize()
 content_img = Image.open('../img/rainier.jpg')
-plt.imshow(content_img);
+plt.imshow(content_img)
+
+style_img = Image.open('../img/autumn-oak.jpg')
+plt.imshow(style_img)
