@@ -95,3 +95,20 @@ transform_test = torchvision.transforms.Compose([
     torchvision.transforms.Normalize([0.4914, 0.4822, 0.4465],
                                      [0.2023, 0.1994, 0.2010])])
 # %%
+train_ds, train_valid_ds = [torchvision.datasets.ImageFolder(
+    os.path.join(data_dir, 'train_valid_test', folder),
+    transform=transform_train) for folder in ['train', 'train_valid']]
+
+valid_ds, test_ds = [torchvision.datasets.ImageFolder(
+    os.path.join(data_dir, 'train_valid_test', folder),
+    transform=transform_test) for folder in ['valid', 'test']]
+# %%
+train_iter, train_valid_iter = [torch.utils.data.DataLoader(
+    dataset, batch_size, shuffle=True, drop_last=True)
+    for dataset in (train_ds, train_valid_ds)]
+
+valid_iter = torch.utils.data.DataLoader(valid_ds, batch_size, shuffle=False,
+                                         drop_last=True)
+
+test_iter = torch.utils.data.DataLoader(test_ds, batch_size, shuffle=False,
+                                        drop_last=False)
