@@ -112,3 +112,86 @@ valid_iter = torch.utils.data.DataLoader(valid_ds, batch_size, shuffle=False,
 
 test_iter = torch.utils.data.DataLoader(test_ds, batch_size, shuffle=False,
                                         drop_last=False)
+# %%
+def resnet18(num_classes):
+    net = nn.HybridSequential()
+    net.add(nn.Conv2D(64, kernel_size=3, strides=1, padding=1),
+            nn.BatchNorm(), nn.Activation('relu'))
+
+    def resnet_block(num_channels, num_residuals, first_block=False):
+        blk = nn.HybridSequential()
+        for i in range(num_residuals):
+            if i == 0 and not first_block:
+                blk.add(Residual(num_channels, use_1x1conv=True, strides=2))
+            else:
+                blk.add(Residual(num_channels))
+        return blk
+
+    net.add(resnet_block(64, 2, first_block=True),
+            resnet_block(128, 2),
+            resnet_block(256, 2),
+            resnet_block(512, 2))
+    net.add(nn.GlobalAvgPool2D(), nn.Dense(num_classes))
+    return net
+# %%
+def get_net():
+    num_classes = 10
+    net = torchvision.models.resnet18(num_classes, 3)
+    return net
+
+loss = nn.CrossEntropyLoss(reduction="none")
+# %%
+def train(net, train_iter, valid_iter, num_epochs, lr, wd, devices, lr_period,
+          lr_decay):
+    trainer = torch.optim.SGD(net.parameters(), lr=lr, momentum=0.9,
+                              weight_decay=wd)
+    scheduler = torch.optim.lr_scheduler.StepLR(trainer, lr_period, lr_decay)
+    num_batches, timer = len(train_iter), Timer()
+    legend = ['train loss', 'train acc']
+    if valid_iter is not None:
+        legend.append('valid acc')
+    animator = Animator(xlabel='epoch', xlim=[1, num_epochs],
+                            legend=legend)
+    net = nn.DataParallel(net, device_ids=devices).to(devices[0])
+    for epoch in range(num_epochs):
+        net.train()
+        metric = Accumulator(3)
+        for i, (features, labels) in enumerate(train_iter):
+            timer.start()
+            l, acc = train_batch_ch13(net, features, labels,
+                                          loss, trainer, devices)
+            metric.add(l, acc, labels.shape[0])
+            timer.stop()
+            if (i + 1) % (num_batches // 5) == 0 or i == num_batches - 1:
+                animator.add(epoch + (i + 1) / num_batches,
+                             (metric[0] / metric[2], metric[1] / metric[2],
+                              None))
+        if valid_iter is not None:
+            valid_acc = evaluate_accuracy_gpu(net, valid_iter)
+            animator.add(epoch + 1, (None, None, valid_acc))
+        scheduler.step()
+    measures = (f'train loss {metric[0] / metric[2]:.3f}, '
+                f'train acc {metric[1] / metric[2]:.3f}')
+    if valid_iter is not None:
+        measures += f', valid acc {valid_acc:.3f}'
+    print(measures + f'\n{metric[2] * num_epochs / timer.sum():.1f}'
+          f' examples/sec on {str(devices)}')
+# %%
+devices, num_epochs, lr, wd = try_all_gpus(), 20, 2e-4, 5e-4
+lr_period, lr_decay, net = 4, 0.9, get_net()
+train(net, train_iter, valid_iter, num_epochs, lr, wd, devices, lr_period,
+      lr_decay)
+# %%
+net, preds = get_net(), []
+train(net, train_valid_iter, None, num_epochs, lr, wd, devices, lr_period,
+      lr_decay)
+
+for X, _ in test_iter:
+    y_hat = net(X.to(devices[0]))
+    preds.extend(y_hat.argmax(dim=1).type(torch.int32).cpu().numpy())
+sorted_ids = list(range(1, len(test_ds) + 1))
+sorted_ids.sort(key=lambda x: str(x))
+df = pd.DataFrame({'id': sorted_ids, 'label': preds})
+df['label'] = df['label'].apply(lambda x: train_valid_ds.classes[x])
+df.to_csv('submission.csv', index=False)
+# %%
