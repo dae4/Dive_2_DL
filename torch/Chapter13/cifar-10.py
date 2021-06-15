@@ -195,3 +195,4 @@ df = pd.DataFrame({'id': sorted_ids, 'label': preds})
 df['label'] = df['label'].apply(lambda x: train_valid_ds.classes[x])
 df.to_csv('submission.csv', index=False)
 # %%
+   
