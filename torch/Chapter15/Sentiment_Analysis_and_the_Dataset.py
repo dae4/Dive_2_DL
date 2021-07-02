@@ -41,7 +41,7 @@ for X, y in train_iter:
     print('X:', X.shape, ', y:', y.shape)
     break
 print('# batches:', len(train_iter))
-
+#%%
 def load_data_imdb(batch_size, num_steps=500):
     data_dir = download_extract('aclImdb', 'aclImdb')
     train_data = read_imdb(data_dir, True)
@@ -59,3 +59,7 @@ def load_data_imdb(batch_size, num_steps=500):
                                batch_size,
                                is_train=False)
     return train_iter, test_iter, vocab
+
+# %%
+
+   
