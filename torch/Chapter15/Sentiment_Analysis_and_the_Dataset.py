@@ -59,7 +59,3 @@ def load_data_imdb(batch_size, num_steps=500):
                                batch_size,
                                is_train=False)
     return train_iter, test_iter, vocab
-
-# %%
-
-     
