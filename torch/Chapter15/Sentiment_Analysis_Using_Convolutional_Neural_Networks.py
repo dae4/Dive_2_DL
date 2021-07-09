@@ -67,3 +67,4 @@ class TextCNN(nn.Module):
         # obtain the output
         outputs = self.decoder(self.dropout(encoding))
         return outputs
+#%%
