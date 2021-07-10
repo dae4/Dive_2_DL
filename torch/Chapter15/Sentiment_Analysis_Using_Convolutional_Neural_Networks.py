@@ -68,3 +68,12 @@ class TextCNN(nn.Module):
         outputs = self.decoder(self.dropout(encoding))
         return outputs
 #%%
+embed_size, kernel_sizes, nums_channels = 100, [3, 4, 5], [100, 100, 100]
+devices = try_all_gpus()
+net = TextCNN(len(vocab), embed_size, kernel_sizes, nums_channels)
+
+def init_weights(m):
+    if type(m) in (nn.Linear, nn.Conv1d):
+        nn.init.xavier_uniform_(m.weight)
+
+net.apply(init_weights)
