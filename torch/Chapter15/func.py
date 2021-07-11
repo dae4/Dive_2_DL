@@ -1423,3 +1423,8 @@ class TokenEmbedding:
 
     def __len__(self):
         return len(self.idx_to_token)
+
+def predict_sentiment(net, vocab, sentence):
+    sentence = torch.tensor(vocab[sentence.split()], device=try_gpu())
+    label = torch.argmax(net(sentence.reshape(1, -1)), dim=1)
+    return 'positive' if label == 1 else 'negative'

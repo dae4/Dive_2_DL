@@ -77,3 +77,15 @@ def init_weights(m):
         nn.init.xavier_uniform_(m.weight)
 
 net.apply(init_weights)
+
+#%%
+glove_embedding = TokenEmbedding('glove.6b.100d')
+embeds = glove_embedding[vocab.idx_to_token]
+net.embedding.weight.data.copy_(embeds)
+net.constant_embedding.weight.data.copy_(embeds)
+net.constant_embedding.weight.requires_grad = False
+#%%
+lr, num_epochs = 0.001, 5
+trainer = torch.optim.Adam(net.parameters(), lr=lr)
+loss = nn.CrossEntropyLoss(reduction="none")
+d2l.train_ch13(net, train_iter, test_iter, loss, trainer, num_epochs, devices)
