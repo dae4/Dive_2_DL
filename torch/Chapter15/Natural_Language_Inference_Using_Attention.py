@@ -42,3 +42,5 @@ class Attend(nn.Module):
         # (axis 1 of `alpha`) in sequence B
         alpha = torch.bmm(F.softmax(e.permute(0, 2, 1), dim=-1), A)
         return beta, alpha
+
+
