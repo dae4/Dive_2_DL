@@ -44,3 +44,4 @@ class Attend(nn.Module):
         return beta, alpha
 
 
+#%%
