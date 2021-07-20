@@ -23,3 +23,5 @@ def load_pretrained_model(pretrained_model, num_hiddens, ffn_num_hiddens,
     # Load pretrained BERT parameters
     bert.load_state_dict(torch.load(os.path.join(data_dir,'pretrained.params')))
     return bert, vocab
+
+#%%
