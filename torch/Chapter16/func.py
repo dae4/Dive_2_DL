@@ -1028,7 +1028,7 @@ class MultiHeadAttention(nn.Module):
                  num_heads, dropout, bias=False, **kwargs):
         super(MultiHeadAttention, self).__init__(**kwargs)
         self.num_heads = num_heads
-        self.attention = d2l.DotProductAttention(dropout)
+        self.attention = DotProductAttention(dropout)
         self.W_q = nn.Linear(query_size, num_hiddens, bias=bias)
         self.W_k = nn.Linear(key_size, num_hiddens, bias=bias)
         self.W_v = nn.Linear(value_size, num_hiddens, bias=bias)
@@ -1405,7 +1405,7 @@ class TokenEmbedding:
 
     def _load_embedding(self, embedding_name):
         idx_to_token, idx_to_vec = ['<unk>'], []
-        data_dir = d2l.download_extract(embedding_name)
+        data_dir = download_extract(embedding_name)
         # GloVe website: https://nlp.stanford.edu/projects/glove/
         # fastText website: https://fasttext.cc/
         with open(os.path.join(data_dir, 'vec.txt'), 'r') as f:
@@ -1417,13 +1417,13 @@ class TokenEmbedding:
                     idx_to_token.append(token)
                     idx_to_vec.append(elems)
         idx_to_vec = [[0] * len(idx_to_vec[0])] + idx_to_vec
-        return idx_to_token, d2l.tensor(idx_to_vec)
+        return idx_to_token, torch.tensor(idx_to_vec)
 
     def __getitem__(self, tokens):
         indices = [
             self.token_to_idx.get(token, self.unknown_idx)
             for token in tokens]
-        vecs = self.idx_to_vec[d2l.tensor(indices)]
+        vecs = self.idx_to_vec[torch.tensor(indices)]
         return vecs
 
     def __len__(self):
@@ -1599,3 +1599,4 @@ def read_data_ml100k():
     num_users = data.user_id.unique().shape[0]
     num_items = data.item_id.unique().shape[0]
     return data, num_users, num_items
+
