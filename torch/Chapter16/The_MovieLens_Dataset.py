@@ -61,4 +61,3 @@ def load_data_ml100k(data, num_users, num_items, feedback='explicit'):
         else:
             inter[item_index, user_index] = score
     return users, items, scores, inter
-#%%
